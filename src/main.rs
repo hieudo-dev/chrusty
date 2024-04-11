@@ -1,18 +1,19 @@
-use std::collections::HashMap;
-
-use dom::{new_element, new_text, TagType};
+use parser::Parser;
 
 mod dom;
+mod parser;
 
 fn main() {
-    let a = new_element(
-        TagType::Div,
-        HashMap::new(),
-        vec![new_element(
-            TagType::Div,
-            HashMap::new(),
-            vec![new_text("Hello, world!", vec![])],
-        )],
+    let mut a = Parser::new(
+        "<div id=\"123\" data-src=\"abc\"     data-id=\"dđd\">
+        zdfasdfsdf
+        <div>
+            List 2
+        </div>
+        <p>
+            List 3 
+        </p>
+    </div>",
     );
-    print!("{}", a)
+    print!("{} {:?}", a.parse(), a)
 }
