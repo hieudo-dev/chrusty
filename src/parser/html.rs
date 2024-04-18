@@ -1,60 +1,33 @@
+use crate::{
+    dom,
+    parser::{ICharStreamParser, IParser},
+};
 use std::collections::HashMap;
 
-use crate::dom::{self, TagType};
-
 #[derive(Debug)]
-pub struct Parser {
+pub struct HTMLParser {
     pos: usize,
     input: String,
 }
+impl_CharStream!(for HTMLParser);
 
-impl Parser {
-    pub fn new(input: &str) -> Parser {
-        Parser {
+impl IParser for HTMLParser {
+    type Output = dom::Document;
+
+    fn new(input: &str) -> HTMLParser {
+        HTMLParser {
             pos: 0,
             input: String::from(input),
         }
     }
-
-    pub fn next_char(&self) -> char {
-        self.input[self.pos..].chars().next().unwrap()
-    }
-
-    pub fn next_char_at(&self, offset: usize) -> char {
-        self.input[(self.pos + offset)..].chars().next().unwrap()
-    }
-
-    pub fn eof(&self) -> bool {
-        self.pos >= self.input.len()
-    }
-
-    pub fn consume_char(&mut self) -> Result<char, &str> {
-        if self.eof() {
-            return Err("All input characters already consumed");
+    fn parse(&mut self) -> dom::Document {
+        dom::Document {
+            children: self.parse_nodes(),
         }
-
-        let mut iter = self.input[self.pos..].char_indices();
-        let (_, cur_char) = iter.next().unwrap();
-        let (next_post, _) = iter.next().unwrap_or((1, ' '));
-        self.pos += next_post;
-        return Ok(cur_char);
     }
+}
 
-    pub fn consume_while<F>(&mut self, test: F) -> String
-    where
-        F: Fn(char) -> bool,
-    {
-        let mut result = String::new();
-        while !self.eof() && test(self.next_char()) {
-            result.push(self.consume_char().unwrap())
-        }
-        return result;
-    }
-
-    pub fn consume_white_space(&mut self) {
-        self.consume_while(char::is_whitespace);
-    }
-
+impl HTMLParser {
     fn parse_node(&mut self) -> dom::Node {
         match self.next_char() {
             '<' => self.parse_element(),
@@ -80,14 +53,14 @@ impl Parser {
         return attributes;
     }
 
-    fn parse_tag(&mut self) -> (TagType, HashMap<String, String>) {
+    fn parse_tag(&mut self) -> (dom::TagType, HashMap<String, String>) {
         let _ = self.consume_char();
         let tag = self.consume_while(|c| c != ' ' && c != '>');
         let attributes = self.parse_attributes();
         let _ = self.consume_char();
         let tag_type = match tag.to_lowercase().as_str() {
-            "div" => TagType::Div,
-            "p" => TagType::P,
+            "div" => dom::TagType::Div,
+            "p" => dom::TagType::P,
             _ => panic!("The following tag type is not supported: {}", tag),
         };
         return (tag_type, attributes);
@@ -114,11 +87,5 @@ impl Parser {
         self.consume_while(|c| c != '>');
         assert_eq!(self.consume_char().unwrap(), '>');
         dom::new_element(tag_type, attributes, children)
-    }
-
-    pub fn parse(&mut self) -> dom::Document {
-        dom::Document {
-            children: self.parse_nodes(),
-        }
     }
 }

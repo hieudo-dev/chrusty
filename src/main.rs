@@ -1,10 +1,11 @@
-use parser::Parser;
+use parser::{HTMLParser, IParser};
 
+mod cssom;
 mod dom;
 mod parser;
 
 fn main() {
-    let mut a = Parser::new(
+    let mut a = HTMLParser::new(
         "<div id=\"123\" data-src=\"abc\"     data-id=\"dđd\">
         zdfasdfsdf
         <div>
