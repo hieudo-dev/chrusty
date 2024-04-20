@@ -25,6 +25,10 @@ macro_rules! impl_CharStream {
                 return Ok(cur_char);
             }
 
+            fn starts_with(&self, s: &str) -> bool {
+                &self.input[self.pos..] == s
+            }
+
             fn consume_while<F>(&mut self, test: F) -> String
             where
                 F: Fn(char) -> bool,
@@ -58,6 +62,7 @@ pub trait IParser {
 trait ICharStreamParser: IParser {
     fn next_char(&self) -> char;
     fn next_char_at(&self, offset: usize) -> char;
+    fn starts_with(&self, s: &str) -> bool;
     fn eof(&self) -> bool;
     fn consume_char(&mut self) -> Result<char, &str>;
     fn consume_while<F>(&mut self, test: F) -> String
