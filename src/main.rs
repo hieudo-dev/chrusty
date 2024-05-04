@@ -1,11 +1,12 @@
-use parser::{CSSParser, IParser};
+use crate::parser::Css;
+use crate::parser::Parser;
 
 mod cssom;
 mod dom;
 mod parser;
 
 fn main() {
-    let mut a = CSSParser::new(
+    let mut a = Parser::<Css>::new(
         "
         div#id.hello {
             height: 100%;
