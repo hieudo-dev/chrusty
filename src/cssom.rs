@@ -30,7 +30,15 @@ pub struct CSSRule {
 
 impl Display for CSSRule {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{} {{\n", self.selector);
+        let _ = write!(
+            f,
+            "{} {{\n",
+            self.selectors
+                .iter()
+                .map(|x| x.to_string())
+                .collect::<Vec<String>>()
+                .join(",\n")
+        );
         for declaration in self.declarations.iter() {
             write!(f, "\t{}\n", declaration);
         }
@@ -160,9 +168,9 @@ pub enum ColorData {
     Hex(String),
 }
 
-pub fn new_css_rule(selector: CSSSelector, declarations: Vec<CSSDeclaration>) -> CSSRule {
+pub fn new_css_rule(selectors: Vec<CSSSelector>, declarations: Vec<CSSDeclaration>) -> CSSRule {
     CSSRule {
-        selector,
+        selectors,
         declarations,
     }
 }

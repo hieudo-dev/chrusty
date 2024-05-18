@@ -16,41 +16,58 @@ impl_CharStream!(for CSSParser);
 impl CSSParser {
     fn parse_identifier(&mut self) -> String {
         self.consume_while(|chr| {
-            chr != '.' && chr != '#' && chr != '{' && chr != '}' && chr != ':' && chr != ';'
+            chr != '.'
+                && chr != '#'
+                && chr != '{'
+                && chr != '}'
+                && chr != ':'
+                && chr != ';'
+                && chr != ','
+                && !char::is_whitespace(chr)
         })
     }
 
     fn parse_rule(&mut self) -> CSSRule {
-        let selector = self.parse_selector();
+        let selectors = self.parse_selectors();
         assert_eq!(self.consume_char(), Ok('{'));
         let declarations = self.parse_declarations();
         self.consume_white_space();
         assert_eq!(self.consume_char(), Ok('}'));
-        return new_css_rule(selector, declarations);
+        return new_css_rule(selectors, declarations);
     }
 
-    fn parse_selector(&mut self) -> CSSSelector {
+    fn parse_selectors(&mut self) -> Vec<CSSSelector> {
+        let mut selectors: Vec<CSSSelector> = vec![];
         self.consume_white_space();
-        let mut class: Vec<String> = vec![];
-        let mut id: Option<String> = None;
-        let tag: Option<String> = match self.next_char() {
-            '.' | '#' => None,
-            _ => Some(self.consume_while(|c| c != '.' && c != '#' && c != '{')),
-        };
-        while !self.eof() {
-            match self.next_char() {
-                '#' => {
-                    let _ = self.consume_char();
-                    id = Some(self.parse_identifier());
+        while !self.eof() && self.next_char() != '{' {
+            let mut class: Vec<String> = vec![];
+            let mut id: Option<String> = None;
+            let tag: Option<String> = match self.next_char() {
+                '.' | '#' => None,
+                _ => Some(self.consume_while(|c| c != '.' && c != '#' && c != '{')),
+            };
+            while !self.eof() {
+                match self.next_char() {
+                    '#' => {
+                        let _ = self.consume_char();
+                        id = Some(self.parse_identifier());
+                    }
+                    '.' => {
+                        let _ = self.consume_char();
+                        class.push(self.parse_identifier())
+                    }
+                    ',' => {
+                        let _ = self.consume_char();
+                        break;
+                    }
+                    _ => break,
                 }
-                '.' => {
-                    let _ = self.consume_char();
-                    class.push(self.parse_identifier())
-                }
-                _ => break,
             }
+            selectors.push(new_css_selector(tag, class, id));
+            self.consume_white_space();
         }
-        return new_css_selector(tag, class, id);
+
+        return selectors;
     }
 
     fn parse_property(&mut self) -> CSSProperty {
