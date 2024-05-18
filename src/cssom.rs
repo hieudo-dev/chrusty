@@ -1,7 +1,9 @@
 use std::fmt::{Display, Formatter, Result};
 
+use crate::dom::TagType;
+
 pub struct Stylesheet {
-    rules: Vec<CSSRule>,
+    pub rules: Vec<CSSRule>,
 }
 
 impl Display for Stylesheet {
@@ -23,9 +25,11 @@ impl Stylesheet {
     }
 }
 
+pub type CSSSpecifity = (usize, usize, usize);
+
 pub struct CSSRule {
-    selector: CSSSelector, // TODO: Can upgrade to Vec<CSSSelector> by handling combinators
-    declarations: Vec<CSSDeclaration>,
+    pub selectors: Vec<CSSSelector>,
+    pub declarations: Vec<CSSDeclaration>,
 }
 
 impl Display for CSSRule {
@@ -48,16 +52,16 @@ impl Display for CSSRule {
 }
 
 pub enum CSSSelector {
-    Simple(SimpleSelector),
+    SimpleSelector(SimpleSelector),
 }
 
 impl Display for CSSSelector {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            CSSSelector::Simple(SimpleSelector { tag, id, class }) => {
+            CSSSelector::SimpleSelector(SimpleSelector { tag, id, class }) => {
                 let tag = match tag {
-                    Some(tag) => tag,
-                    None => "",
+                    Some(tag) => tag.to_string(),
+                    None => "".to_string(),
                 };
                 let id = match id {
                     Some(id) => "#".to_string() + id,
@@ -70,10 +74,10 @@ impl Display for CSSSelector {
                 write!(
                     f,
                     "{}",
-                    [tag, id.as_str(), class.as_str()]
+                    [tag, id, class]
                         .into_iter()
-                        .filter(|&x| x.len() > 0)
-                        .collect::<Vec<&str>>()
+                        .filter(|x| x.len() > 0)
+                        .collect::<Vec<String>>()
                         .join("")
                 )
             }
@@ -81,17 +85,28 @@ impl Display for CSSSelector {
     }
 }
 
-struct SimpleSelector {
-    tag: Option<String>,
-    id: Option<String>,
-    class: Vec<String>,
+impl CSSSelector {
+    pub fn specificity(&self) -> CSSSpecifity {
+        let CSSSelector::SimpleSelector(ref selector) = *self;
+        let a = selector.id.iter().count();
+        let b = selector.class.len();
+        let c = selector.tag.iter().count();
+        (a, b, c)
+    }
+}
+
+#[derive(Debug)]
+pub struct SimpleSelector {
+    pub tag: Option<TagType>,
+    pub id: Option<String>,
+    pub class: Vec<String>,
 }
 
 #[derive(Debug)]
 pub struct CSSDeclaration {
-    property: CSSProperty,
-    value: CSSValue,
-    is_important: bool,
+    pub property: CSSProperty,
+    pub value: CSSValue,
+    pub is_important: bool,
 }
 
 impl Display for CSSDeclaration {
@@ -104,7 +119,7 @@ impl Display for CSSDeclaration {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub enum CSSProperty {
     Background,
     Color,
@@ -188,9 +203,9 @@ pub fn new_css_declaration(
 }
 
 pub fn new_css_selector(
-    tag: Option<String>,
+    tag: Option<TagType>,
     class: Vec<String>,
     id: Option<String>,
 ) -> CSSSelector {
-    CSSSelector::Simple(SimpleSelector { tag, id, class })
+    CSSSelector::SimpleSelector(SimpleSelector { tag, id, class })
 }

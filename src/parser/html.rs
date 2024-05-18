@@ -1,5 +1,5 @@
 use crate::{
-    dom,
+    dom::{self, new_element, ElementData, NodeType},
     parser::{ICharStreamParser, IParser},
 };
 use std::collections::HashMap;
@@ -23,6 +23,10 @@ impl IParser for HTMLParser {
     fn parse(&mut self) -> dom::Document {
         dom::Document {
             children: self.parse_nodes(),
+            node_type: NodeType::Element(ElementData {
+                tag_type: dom::TagType::Html,
+                attributes: HashMap::new(),
+            }),
         }
     }
 }
@@ -61,6 +65,8 @@ impl HTMLParser {
         let tag_type = match tag.to_lowercase().as_str() {
             "div" => dom::TagType::Div,
             "p" => dom::TagType::P,
+            "html" => dom::TagType::Html,
+            "style" => dom::TagType::Style,
             _ => panic!("The following tag type is not supported: {}", tag),
         };
         return (tag_type, attributes);

@@ -1,8 +1,17 @@
-use std::{collections::HashMap, fmt};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+};
+
+pub trait IDomNode {
+    fn get_children(&self) -> &Vec<Node>;
+    fn get_node_type(&self) -> &NodeType;
+}
 
 #[derive(Debug)]
 pub struct Document {
     pub children: Vec<Node>,
+    pub node_type: NodeType,
 }
 
 impl fmt::Display for Document {
@@ -11,6 +20,16 @@ impl fmt::Display for Document {
             child.recursive_fmt(f, 0);
         }
         Ok(())
+    }
+}
+
+impl IDomNode for Document {
+    fn get_children(&self) -> &Vec<Node> {
+        return &self.children;
+    }
+
+    fn get_node_type(&self) -> &NodeType {
+        return &self.node_type;
     }
 }
 
@@ -50,30 +69,56 @@ impl Node {
     }
 }
 
+impl IDomNode for Node {
+    fn get_children(&self) -> &Vec<Node> {
+        return &self.children;
+    }
+
+    fn get_node_type(&self) -> &NodeType {
+        return &self.node_type;
+    }
+}
+
 #[derive(Debug)]
-enum NodeType {
-    // TODO: Add support for more Node types
+pub enum NodeType {
     Text(String),
     Element(ElementData),
 }
 
 #[derive(Debug)]
-struct ElementData {
-    tag_type: TagType,
-    attributes: HashMap<String, String>,
+pub struct ElementData {
+    pub tag_type: TagType,
+    pub attributes: HashMap<String, String>,
 }
 
-#[derive(Debug)]
+impl ElementData {
+    pub fn id(&self) -> Option<&String> {
+        self.attributes.get("id")
+    }
+
+    pub fn classes(&self) -> HashSet<&str> {
+        match self.attributes.get("class") {
+            Some(classlist) => classlist.split(' ').collect(),
+            None => HashSet::new(),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub enum TagType {
+    Html,
     Div,
     P,
+    Style,
 }
 
 impl std::fmt::Display for TagType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            TagType::Html => write!(f, "html"),
             TagType::Div => write!(f, "div"),
             TagType::P => write!(f, "p"),
+            TagType::Style => write!(f, "style"),
         }
     }
 }

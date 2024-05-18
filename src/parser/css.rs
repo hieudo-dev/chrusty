@@ -3,6 +3,7 @@ use crate::{
         new_css_declaration, new_css_rule, new_css_selector, CSSDeclaration, CSSProperty, CSSRule,
         CSSSelector, CSSValue, ColorData, Stylesheet, Unit,
     },
+    dom::TagType,
     parser::{ICharStreamParser, IParser},
 };
 
@@ -36,16 +37,29 @@ impl CSSParser {
         return new_css_rule(selectors, declarations);
     }
 
+    fn parse_tag(&mut self) -> Option<TagType> {
+        if self.next_char() == '.' || self.next_char() == '#' {
+            return None;
+        }
+
+        let tag_name =
+            self.consume_while(|c| c != '.' && c != '#' && c != '{' && !char::is_whitespace(c));
+        return Some(match tag_name.as_ref() {
+            "div" => TagType::Div,
+            "p" => TagType::P,
+            "html" => TagType::Html,
+            "style" => TagType::Style,
+            tag => panic!("The following tag type is not supported: '{}'", tag),
+        });
+    }
+
     fn parse_selectors(&mut self) -> Vec<CSSSelector> {
         let mut selectors: Vec<CSSSelector> = vec![];
         self.consume_white_space();
         while !self.eof() && self.next_char() != '{' {
             let mut class: Vec<String> = vec![];
             let mut id: Option<String> = None;
-            let tag: Option<String> = match self.next_char() {
-                '.' | '#' => None,
-                _ => Some(self.consume_while(|c| c != '.' && c != '#' && c != '{')),
-            };
+            let tag: Option<TagType> = self.parse_tag();
             while !self.eof() {
                 match self.next_char() {
                     '#' => {
@@ -155,5 +169,38 @@ impl IParser for CSSParser {
             self.consume_white_space();
         }
         stylesheet
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        parser::{CSSParser, IParser},
+        utils::minify,
+    };
+
+    #[test]
+    fn parse() {
+        let input = "
+            div#id.hello {
+                height: 100%;
+                background: purple;
+                color: #ffffff !important;
+            }
+
+            div.my-div,
+            div.my-div-2 {
+                width: 100px;
+                height: 100%;
+                background: blue;
+                color: #ffffff;
+            }
+
+            html {
+                background: green;
+            }
+        ";
+        let parsed = CSSParser::new(input).parse();
+        assert_eq!(minify(&parsed.to_string()), minify(input))
     }
 }
