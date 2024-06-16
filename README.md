@@ -10,6 +10,34 @@ The goal of Chrusty is to help me understand how modern web browsers work under 
 
 Hopefully after checking out this repo it inspires fellow Rust developers (or web developers) to experiment and dive deeper.
 
+# Supported features
+
+### HTML
+  - HTML parsing
+  - Supported HTML tags:
+    - html
+    - div
+    - p
+    - style
+  - DOM tree
+
+### CSS
+  - CSS Parsing
+  - Simple selectors (CSS2)
+  - Specificity
+  - Supported CSS properties
+    - background
+    - color
+    - width
+    - height
+
+
+### Javascript
+
+Unsupported
+
+
+
 # Future ideas
 
 - DOM:
