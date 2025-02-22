@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use crate::dom::TagType;
 
+#[derive(Debug)]
 pub struct Stylesheet {
     pub rules: Vec<CSSRule>,
 }
@@ -27,6 +28,7 @@ impl Stylesheet {
 
 pub type CSSSpecifity = (usize, usize, usize);
 
+#[derive(Debug)]
 pub struct CSSRule {
     pub selectors: Vec<CSSSelector>,
     pub declarations: Vec<CSSDeclaration>,
@@ -51,6 +53,7 @@ impl Display for CSSRule {
     }
 }
 
+#[derive(Debug)]
 pub enum CSSSelector {
     SimpleSelector(SimpleSelector),
 }
@@ -121,6 +124,7 @@ impl Display for CSSDeclaration {
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum CSSProperty {
+    Display,
     Background,
     Color,
     Width,
@@ -130,6 +134,7 @@ pub enum CSSProperty {
 impl Display for CSSProperty {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let output = match self {
+            Self::Display => "display",
             Self::Background => "background",
             Self::Color => "color",
             Self::Height => "height",

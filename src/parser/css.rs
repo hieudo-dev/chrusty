@@ -92,6 +92,7 @@ impl CSSParser {
             "width" => CSSProperty::Width,
             "height" => CSSProperty::Height,
             "color" => CSSProperty::Color,
+            "display" => CSSProperty::Display,
             x => panic!("Following CSS property is not supported: {}", x),
         };
     }

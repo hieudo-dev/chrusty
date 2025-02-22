@@ -13,7 +13,28 @@ type PropertyMap<'a> = HashMap<&'a CSSProperty, &'a CSSValue>;
 pub struct StyledNode<'a> {
     node: &'a dyn IDomNode,
     specified_values: PropertyMap<'a>,
-    children: Vec<StyledNode<'a>>,
+    pub children: Vec<StyledNode<'a>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Display {
+    Block,
+    Inline,
+    None,
+}
+
+impl<'a> StyledNode<'a> {
+    pub fn get_computed_value(&self, name: &CSSProperty) -> Option<&CSSValue> {
+        self.specified_values.get(name).map(|v| *v)
+    }
+
+    pub fn get_computed_display(&self) -> Display {
+        match self.get_computed_value(&CSSProperty::Display) {
+            Some(CSSValue::Keyword(value)) if value == "inline" => Display::Inline,
+            Some(CSSValue::Keyword(value)) if value == "none" => Display::None,
+            value => Display::Block,
+        }
+    }
 }
 
 fn matches_simple_selector(elem: &ElementData, selector: &SimpleSelector) -> bool {
@@ -29,7 +50,7 @@ fn matches_simple_selector(elem: &ElementData, selector: &SimpleSelector) -> boo
     if selector
         .class
         .iter()
-        .any(|class| !elem_classes.contains(&**class))
+        .any(|class| !elem_classes.contains(class.as_str()))
     {
         return false;
     }
@@ -50,8 +71,8 @@ fn matches_rule(node: &ElementData, rule: &CSSRule) -> Option<CSSSpecifity> {
         .filter(|selector| matches(node, selector))
         .map(|selector| selector.specificity())
         .collect();
-    matched_rules.sort_by(|a, b| b.cmp(&a));
-    matched_rules.iter().next().copied()
+    matched_rules.sort_by(|a, b| b.cmp(a));
+    return matched_rules.iter().next().copied();
 }
 
 fn get_specified_values<'a>(node: &dyn IDomNode, stylesheet: &'a Stylesheet) -> PropertyMap<'a> {
@@ -101,14 +122,17 @@ fn get_specified_values<'a>(node: &dyn IDomNode, stylesheet: &'a Stylesheet) -> 
     }
 }
 
-pub fn get_styled_node<'a>(node: &'a dyn IDomNode, stylesheet: &'a Stylesheet) -> StyledNode<'a> {
+pub fn generate_styled_node<'a>(
+    node: &'a (dyn IDomNode),
+    stylesheet: &'a Stylesheet,
+) -> StyledNode<'a> {
     StyledNode {
         node: node,
         specified_values: get_specified_values(node, stylesheet),
         children: node
             .get_children()
             .iter()
-            .map(|child| get_styled_node(child, stylesheet))
+            .map(|child| generate_styled_node(child, stylesheet))
             .collect(),
     }
 }
@@ -117,11 +141,11 @@ mod tests {
     use crate::{
         cssom::{CSSProperty, CSSValue},
         parser::{CSSParser, HTMLParser, IParser},
-        style::get_styled_node,
+        style::{generate_styled_node, Display},
     };
 
     #[test]
-    fn generates_styled_tree() {
+    fn test_generated_styled_tree() {
         let html = "
             <div class=\"my-div\">
                 Hello world!
@@ -131,14 +155,14 @@ mod tests {
             div {
                 color: #fff;
             }
-            
+
             html {
                 color: #000;
             }
         ";
         let stylesheet = CSSParser::new(css).parse();
         let dom = HTMLParser::new(html).parse();
-        let styled_dom = get_styled_node(&dom, &stylesheet);
+        let styled_dom = generate_styled_node(&dom, &stylesheet);
         let Some(CSSValue::Keyword(val)) = styled_dom.specified_values.get(&CSSProperty::Color)
         else {
             panic!("CSS rule was not applied to HTML tag")
@@ -151,5 +175,68 @@ mod tests {
             panic!("CSS rule was not applied to DIV tag")
         };
         assert_eq!(val, "#fff");
+    }
+
+    #[test]
+    fn test_display_none() {
+        let html = "<div style=\"display: none\">Hidden</div>";
+        let css = "div { display: none; }";
+        let stylesheet = CSSParser::new(css).parse();
+        let dom = HTMLParser::new(html).parse();
+        let styled_dom = generate_styled_node(&dom, &stylesheet);
+
+        assert!(matches!(
+            styled_dom.children[0].get_computed_display(),
+            Display::None
+        ));
+    }
+
+    #[test]
+    fn test_inline_block_display() {
+        let html = "<div>Inline text</div>";
+        let css = "div { display: inline; }";
+        let stylesheet = CSSParser::new(css).parse();
+        let dom = HTMLParser::new(html).parse();
+        let styled_dom = generate_styled_node(&dom, &stylesheet);
+
+        assert_eq!(
+            styled_dom.children[0].get_computed_display(),
+            Display::Inline
+        );
+    }
+
+    #[test]
+    fn test_css_specificity_ordering() {
+        let html = "<p class=\"foo\">Text</p>";
+        let css = "
+            p { color: red; }
+            .foo { color: blue; }
+        ";
+        let stylesheet = CSSParser::new(css).parse();
+        let dom = HTMLParser::new(html).parse();
+        let styled_dom = generate_styled_node(&dom, &stylesheet);
+
+        let Some(CSSValue::Keyword(val)) =
+            styled_dom.children[0].get_computed_value(&CSSProperty::Color)
+        else {
+            panic!("CSS rule was not applied")
+        };
+        assert_eq!(val, "blue");
+    }
+
+    #[test]
+    fn test_style_element_by_id() {
+        let html = "<div id=\"test\">Hello</div>";
+        let css = "#test { color: green; }";
+        let stylesheet = CSSParser::new(css).parse();
+        let dom = HTMLParser::new(html).parse();
+        let styled_dom = generate_styled_node(&dom, &stylesheet);
+
+        let Some(CSSValue::Keyword(val)) =
+            styled_dom.children[0].get_computed_value(&CSSProperty::Color)
+        else {
+            panic!("CSS rule was not applied")
+        };
+        assert_eq!(val, "green");
     }
 }
