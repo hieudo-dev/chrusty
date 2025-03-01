@@ -10,6 +10,7 @@ use crate::{
 
 type PropertyMap<'a> = HashMap<&'a CSSProperty, &'a CSSValue>;
 
+#[derive(Debug)]
 pub struct StyledNode<'a> {
     node: &'a dyn IDomNode,
     specified_values: PropertyMap<'a>,

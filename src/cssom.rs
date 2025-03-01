@@ -125,6 +125,7 @@ impl Display for CSSDeclaration {
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum CSSProperty {
     Display,
+    Padding,
     Background,
     Color,
     Width,
@@ -136,6 +137,7 @@ impl Display for CSSProperty {
         let output = match self {
             Self::Display => "display",
             Self::Background => "background",
+            Self::Padding => "padding",
             Self::Color => "color",
             Self::Height => "height",
             Self::Width => "width",
@@ -213,4 +215,94 @@ pub fn new_css_selector(
     id: Option<String>,
 ) -> CSSSelector {
     CSSSelector::SimpleSelector(SimpleSelector { tag, id, class })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_stylesheet_display() {
+        let rule = new_css_rule(
+            vec![new_css_selector(
+                None,
+                vec!["btn".to_string()],
+                Some("primary".to_string()),
+            )],
+            vec![new_css_declaration(
+                CSSProperty::Color,
+                CSSValue::Keyword("red".to_string()),
+                false,
+            )],
+        );
+        let stylesheet = Stylesheet::new(vec![rule]);
+        let output = format!("{}", stylesheet);
+        assert!(output.contains("#primary.btn {"));
+        assert!(output.contains("color: red;"));
+    }
+
+    #[test]
+    fn test_add_rule() {
+        let mut stylesheet = Stylesheet::new(vec![]);
+        let rule = new_css_rule(vec![], vec![]);
+        stylesheet.add_rule(rule);
+        assert_eq!(stylesheet.rules.len(), 1);
+    }
+
+    #[test]
+    fn test_css_selector_display() {
+        let selector = new_css_selector(Some(TagType::Div), vec!["container".to_string()], None);
+        assert_eq!(format!("{}", selector), "div.container");
+    }
+
+    #[test]
+    fn test_css_selector_specificity() {
+        let selector = new_css_selector(
+            Some(TagType::Div),
+            vec!["class1".to_string(), "class2".to_string()],
+            Some("unique".to_string()),
+        );
+        assert_eq!(selector.specificity(), (1, 2, 1));
+    }
+
+    #[test]
+    fn test_css_rule_display() {
+        let rule = new_css_rule(
+            vec![new_css_selector(
+                Some(TagType::Div),
+                vec!["highlight".to_string()],
+                None,
+            )],
+            vec![new_css_declaration(
+                CSSProperty::Background,
+                CSSValue::Keyword("yellow".to_string()),
+                true,
+            )],
+        );
+        let output = format!("{}", rule);
+        assert!(output.contains("div.highlight {"));
+        assert!(output.contains("background: yellow !important;"));
+    }
+
+    #[test]
+    fn test_css_declaration_display() {
+        let decl = new_css_declaration(
+            CSSProperty::Padding,
+            CSSValue::Dimension(10.0, Unit::Px),
+            false,
+        );
+        assert_eq!(format!("{}", decl), "padding: 10px;");
+    }
+
+    #[test]
+    fn test_css_value_display() {
+        let val1 = CSSValue::Dimension(20.0, Unit::Percent);
+        assert_eq!(format!("{}", val1), "20%");
+
+        let val2 = CSSValue::Keyword("none".to_string());
+        assert_eq!(format!("{}", val2), "none");
+
+        let val3 = CSSValue::Color(ColorData::Rgb(255, 0, 0));
+        assert_eq!(format!("{}", val3), "rgb(255, 0, 0)");
+    }
 }

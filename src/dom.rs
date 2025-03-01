@@ -1,9 +1,9 @@
 use std::{
     collections::{HashMap, HashSet},
-    fmt,
+    fmt::{self, Debug},
 };
 
-pub trait IDomNode {
+pub trait IDomNode: Debug {
     fn get_children(&self) -> &Vec<Node>;
     fn get_node_type(&self) -> &NodeType;
 }
