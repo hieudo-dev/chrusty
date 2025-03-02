@@ -5,15 +5,15 @@ use crate::{
         CSSDeclaration, CSSProperty, CSSRule, CSSSelector, CSSSpecifity, CSSValue, SimpleSelector,
         Stylesheet,
     },
-    dom::{self, ElementData, IDomNode, NodeType},
+    dom::{self, ElementData, IDomNode, NodeType, TagType},
 };
 
-type PropertyMap<'a> = HashMap<&'a CSSProperty, &'a CSSValue>;
+pub type PropertyMap<'a> = HashMap<&'a CSSProperty, &'a CSSValue>;
 
 #[derive(Debug)]
 pub struct StyledNode<'a> {
-    node: &'a dyn IDomNode,
-    specified_values: PropertyMap<'a>,
+    pub node: &'a dyn IDomNode,
+    pub specified_values: PropertyMap<'a>,
     pub children: Vec<StyledNode<'a>>,
 }
 
@@ -25,11 +25,15 @@ pub enum Display {
 }
 
 impl<'a> StyledNode<'a> {
-    pub fn get_computed_value(&self, name: &CSSProperty) -> Option<&CSSValue> {
-        self.specified_values.get(name).map(|v| *v)
+    pub fn get_computed_value(&self, name: &CSSProperty) -> Option<CSSValue> {
+        self.specified_values.get(name).map(|v| (*v).clone())
     }
 
     pub fn get_computed_display(&self) -> Display {
+        if let Some(TagType::Span) = self.node.get_tag_type() {
+            return Display::Inline;
+        };
+
         match self.get_computed_value(&CSSProperty::Display) {
             Some(CSSValue::Keyword(value)) if value == "inline" => Display::Inline,
             Some(CSSValue::Keyword(value)) if value == "none" => Display::None,

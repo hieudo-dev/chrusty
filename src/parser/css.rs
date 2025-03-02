@@ -118,7 +118,7 @@ impl CSSParser {
                 let unit = {
                     let unit = self.consume_while(|c| c != ';');
                     match unit.as_str() {
-                        "%" => Unit::Percent,
+                        // "%" => Unit::Percent,
                         _ => Unit::Px,
                     }
                 };
@@ -184,7 +184,7 @@ mod tests {
     fn parse() {
         let input = "
             div#id.hello {
-                height: 100%;
+                height: 100px;
                 background: purple;
                 color: #ffffff !important;
             }
@@ -192,7 +192,7 @@ mod tests {
             div.my-div,
             div.my-div-2 {
                 width: 100px;
-                height: 100%;
+                height: 100px;
                 background: blue;
                 color: #ffffff;
             }

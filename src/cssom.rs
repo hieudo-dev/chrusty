@@ -2,7 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 
 use crate::dom::TagType;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Stylesheet {
     pub rules: Vec<CSSRule>,
 }
@@ -147,7 +147,7 @@ impl Display for CSSProperty {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CSSValue {
     Dimension(f32, Unit),
     Keyword(String),
@@ -167,24 +167,24 @@ impl Display for CSSValue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Unit {
     Px,
-    Percent,
+    // Percent, TODO: Add support
 }
 
 impl Display for Unit {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let output = match self {
             Self::Px => "px",
-            Self::Percent => "%",
+            // Self::Percent => "%"
         };
         write!(f, "{}", output);
         Ok(())
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ColorData {
     Rgb(u32, u32, u32),
     Hex(String),
@@ -296,8 +296,8 @@ mod tests {
 
     #[test]
     fn test_css_value_display() {
-        let val1 = CSSValue::Dimension(20.0, Unit::Percent);
-        assert_eq!(format!("{}", val1), "20%");
+        // let val1 = CSSValue::Dimension(20.0, Unit::Percent);
+        // assert_eq!(format!("{}", val1), "20%");
 
         let val2 = CSSValue::Keyword("none".to_string());
         assert_eq!(format!("{}", val2), "none");

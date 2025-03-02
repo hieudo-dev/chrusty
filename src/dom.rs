@@ -6,6 +6,7 @@ use std::{
 pub trait IDomNode: Debug {
     fn get_children(&self) -> &Vec<Node>;
     fn get_node_type(&self) -> &NodeType;
+    fn get_tag_type(&self) -> Option<TagType>;
 }
 
 #[derive(Debug)]
@@ -30,6 +31,10 @@ impl IDomNode for Document {
 
     fn get_node_type(&self) -> &NodeType {
         return &self.node_type;
+    }
+
+    fn get_tag_type(&self) -> Option<TagType> {
+        return Some(TagType::Html);
     }
 }
 
@@ -77,6 +82,16 @@ impl IDomNode for Node {
     fn get_node_type(&self) -> &NodeType {
         return &self.node_type;
     }
+
+    fn get_tag_type(&self) -> Option<TagType> {
+        match &self.node_type {
+            NodeType::Text(_) => None,
+            NodeType::Element(ElementData {
+                tag_type,
+                attributes,
+            }) => Some((*tag_type)),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -104,11 +119,12 @@ impl ElementData {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TagType {
     Html,
     Div,
     P,
+    Span,
     Style,
 }
 
@@ -117,6 +133,7 @@ impl std::fmt::Display for TagType {
         match self {
             TagType::Html => write!(f, "html"),
             TagType::Div => write!(f, "div"),
+            TagType::Span => write!(f, "span"),
             TagType::P => write!(f, "p"),
             TagType::Style => write!(f, "style"),
         }
