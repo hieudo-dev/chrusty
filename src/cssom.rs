@@ -122,7 +122,7 @@ impl Display for CSSDeclaration {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Hash)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum CSSProperty {
     Display,
     Padding,
@@ -147,9 +147,21 @@ impl Display for CSSProperty {
     }
 }
 
+impl CSSProperty {
+    pub fn default_value(&self) -> CSSValue {
+        match self {
+            Self::Display => CSSValue::Keyword(String::from("block")),
+            Self::Background => CSSValue::Color(ColorData::Rgb(255, 255, 255)),
+            Self::Color => CSSValue::Color(ColorData::Rgb(0, 0, 0)),
+            Self::Padding => CSSValue::Dimension(0, Unit::Px),
+            Self::Height | Self::Width => CSSValue::Keyword(String::from("unset")),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum CSSValue {
-    Dimension(f32, Unit),
+    Dimension(u32, Unit),
     Keyword(String),
     Color(ColorData),
 }
@@ -186,7 +198,7 @@ impl Display for Unit {
 
 #[derive(Debug, Clone)]
 pub enum ColorData {
-    Rgb(u32, u32, u32),
+    Rgb(u8, u8, u8),
     Hex(String),
 }
 
@@ -288,7 +300,7 @@ mod tests {
     fn test_css_declaration_display() {
         let decl = new_css_declaration(
             CSSProperty::Padding,
-            CSSValue::Dimension(10.0, Unit::Px),
+            CSSValue::Dimension(10, Unit::Px),
             false,
         );
         assert_eq!(format!("{}", decl), "padding: 10px;");

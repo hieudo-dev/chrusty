@@ -12,7 +12,7 @@ pub struct HTMLParser {
 impl_CharStream!(for HTMLParser);
 
 impl IParser for HTMLParser {
-    type Output = dom::Document;
+    type Output = dom::DomNode;
 
     fn new(input: &str) -> HTMLParser {
         HTMLParser {
@@ -20,26 +20,26 @@ impl IParser for HTMLParser {
             input: String::from(input),
         }
     }
-    fn parse(&mut self) -> dom::Document {
-        dom::Document {
-            children: self.parse_nodes(),
-            node_type: NodeType::Element(ElementData {
+    fn parse(&mut self) -> dom::DomNode {
+        dom::DomNode::new(
+            NodeType::Element(ElementData {
                 tag_type: dom::TagType::Html,
                 attributes: HashMap::new(),
             }),
-        }
+            self.parse_nodes(),
+        )
     }
 }
 
 impl HTMLParser {
-    fn parse_node(&mut self) -> dom::Node {
+    fn parse_node(&mut self) -> dom::DomNode {
         match self.next_char() {
             '<' => self.parse_element(),
             _ => self.parse_text(),
         }
     }
 
-    fn parse_text(&mut self) -> dom::Node {
+    fn parse_text(&mut self) -> dom::DomNode {
         dom::new_text(&self.consume_while(|c| c != '<'), vec![])
     }
 
@@ -49,9 +49,9 @@ impl HTMLParser {
             self.consume_white_space();
             let atr_name = self.consume_while(|c| char::is_alphabetic(c) || c == '-');
             assert_eq!(self.consume_char(), Ok('='));
-            assert_eq!(self.consume_char(), Ok('"'));
-            let atr_value = self.consume_while(|c| c != '"');
-            assert_eq!(self.consume_char(), Ok('"'));
+            assert_eq!(self.consume_char(), Ok('\''));
+            let atr_value = self.consume_while(|c| c != '\'');
+            assert_eq!(self.consume_char(), Ok('\''));
             attributes.insert(atr_name, atr_value);
         }
         return attributes;
@@ -72,7 +72,7 @@ impl HTMLParser {
         return (tag_type, attributes);
     }
 
-    fn parse_nodes(&mut self) -> Vec<dom::Node> {
+    fn parse_nodes(&mut self) -> Vec<dom::DomNode> {
         let mut nodes = vec![];
         loop {
             self.consume_white_space();
@@ -85,7 +85,7 @@ impl HTMLParser {
         return nodes;
     }
 
-    fn parse_element(&mut self) -> dom::Node {
+    fn parse_element(&mut self) -> dom::DomNode {
         let (tag_type, attributes) = self.parse_tag();
         let children = self.parse_nodes();
         assert_eq!(self.consume_char().unwrap(), '<');

@@ -89,6 +89,7 @@ impl CSSParser {
         let prop_name = self.parse_identifier();
         return match prop_name.as_ref() {
             "background" => CSSProperty::Background,
+            "padding" => CSSProperty::Padding,
             "width" => CSSProperty::Width,
             "height" => CSSProperty::Height,
             "color" => CSSProperty::Color,
@@ -103,17 +104,17 @@ impl CSSParser {
             if self.starts_with("rgb(") {
                 self.consume_while(|c| c != '(');
                 assert_eq!(self.consume_char(), Ok('('));
-                let r = self.consume_while(char::is_numeric).parse::<u32>().unwrap();
+                let r = self.consume_while(char::is_numeric).parse::<u8>().unwrap();
                 assert_eq!(self.consume_char(), Ok(','));
-                let g = self.consume_while(char::is_numeric).parse::<u32>().unwrap();
+                let g = self.consume_while(char::is_numeric).parse::<u8>().unwrap();
                 assert_eq!(self.consume_char(), Ok(','));
-                let b = self.consume_while(char::is_numeric).parse::<u32>().unwrap();
+                let b = self.consume_while(char::is_numeric).parse::<u8>().unwrap();
                 assert_eq!(self.consume_char(), Ok(')'));
                 return CSSValue::Color(ColorData::Rgb(r, g, b));
             } else if char::is_numeric(self.next_char()) {
                 let value = self
                     .consume_while(|c| c != 'p' && c != '%')
-                    .parse::<f32>()
+                    .parse::<u32>()
                     .unwrap();
                 let unit = {
                     let unit = self.consume_while(|c| c != ';');
@@ -199,6 +200,7 @@ mod tests {
 
             html {
                 background: green;
+                background: rgb(10,10,10);
             }
         ";
         let parsed = CSSParser::new(input).parse();

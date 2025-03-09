@@ -4,45 +4,45 @@ use crate::{
 };
 
 #[derive(Debug, Default)]
-struct EdgeSizes {
-    left: f32,
-    right: f32,
-    top: f32,
-    bottom: f32,
+pub struct EdgeSizes {
+    left: u32,
+    right: u32,
+    top: u32,
+    bottom: u32,
 }
 
 #[derive(Default, Debug)]
-struct Rect {
-    x: f32,
-    y: f32,
-    width: f32,
-    height: f32,
+pub struct Rect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 #[derive(Debug, Default)]
-struct Dimensions {
-    boundingRect: Rect,
-    padding: EdgeSizes,
-    content: Rect,
+pub struct Dimensions {
+    pub boundingRect: Rect,
+    pub padding: EdgeSizes,
+    pub content: Rect,
     // margin: EdgeSizes,
 }
 
 #[derive(Debug)]
-enum BoxType<'a> {
-    Block(&'a StyledNode<'a>),
-    Inline(&'a StyledNode<'a>),
+pub enum BoxType {
+    Block(StyledNode),
+    Inline(StyledNode),
     Anonymous,
 }
 
 #[derive(Debug)]
-pub struct LayoutBox<'a> {
-    dimensions: Dimensions,
-    box_type: BoxType<'a>,
-    children: Vec<LayoutBox<'a>>,
+pub struct LayoutBox {
+    pub dimensions: Dimensions,
+    pub box_type: BoxType,
+    pub children: Vec<LayoutBox>,
 }
 
-impl<'a> LayoutBox<'a> {
-    fn get_inline_container(&mut self) -> &mut LayoutBox<'a> {
+impl LayoutBox {
+    fn get_inline_container(&mut self) -> &mut LayoutBox {
         match self.box_type {
             BoxType::Inline(_) | BoxType::Anonymous => self,
             BoxType::Block(_) => {
@@ -58,7 +58,7 @@ impl<'a> LayoutBox<'a> {
         }
     }
 
-    fn new(box_type: BoxType<'a>) -> LayoutBox<'a> {
+    fn new(box_type: BoxType) -> LayoutBox {
         LayoutBox {
             dimensions: Default::default(),
             box_type,
@@ -67,7 +67,7 @@ impl<'a> LayoutBox<'a> {
     }
 
     fn get_styled_node(&self) -> &StyledNode {
-        match self.box_type {
+        match &self.box_type {
             BoxType::Block(x) | BoxType::Inline(x) => x,
             _ => panic!("Box type unsupported: {:#?}", self.box_type),
         }
@@ -95,17 +95,23 @@ impl<'a> LayoutBox<'a> {
         let padding = style.get_computed_value(&CSSProperty::Padding);
         // TODO: add support unit types
         let Some(CSSValue::Dimension(paddingValue, _)) = padding else {
-            panic!("Padding value unsupported: {}", padding.unwrap());
+            panic!(
+                "Padding value unsupported: {:?}\nFor element:\n {:#?}",
+                padding, style
+            );
         };
 
-        let width = style.get_computed_value(&CSSProperty::Width);
-        let Some(CSSValue::Dimension(widthValue, _)) = width else {
-            panic!("Width value unsupported: {}", width.unwrap());
+        // TODO: handle width based on display
+        let widthValue = match style.get_computed_value(&CSSProperty::Width) {
+            Some(CSSValue::Dimension(widthValue, _)) => widthValue,
+            _ => container.boundingRect.width - container.padding.left - container.padding.right,
         };
 
         self.dimensions.padding.left = paddingValue;
         self.dimensions.padding.right = paddingValue;
         self.dimensions.boundingRect.width = widthValue;
+        self.dimensions.content.width =
+            widthValue - self.dimensions.padding.left - self.dimensions.padding.right;
     }
 
     fn layout_block_position(&mut self, container: &Dimensions) {
@@ -130,26 +136,34 @@ impl<'a> LayoutBox<'a> {
     }
 
     fn layout_block_height(&mut self, container: &Dimensions) {
-        self.dimensions.boundingRect.height = self.dimensions.padding.top
-            + self.dimensions.content.height
-            + self.dimensions.padding.bottom;
+        let computed_height = self
+            .get_styled_node()
+            .get_computed_value(&CSSProperty::Height);
+        self.dimensions.boundingRect.height = match computed_height {
+            Some(CSSValue::Dimension(value, _)) => value,
+            _ => {
+                self.dimensions.padding.top
+                    + self.dimensions.content.height
+                    + self.dimensions.padding.bottom
+            }
+        }
     }
 }
 
-pub fn build_layout_tree<'a>(styled_node: &'a StyledNode) -> LayoutBox<'a> {
+pub fn generate_layout_tree(styled_node: &StyledNode) -> LayoutBox {
     let mut root = LayoutBox::new(match styled_node.get_computed_display() {
-        Display::Block => BoxType::Block(&styled_node),
-        Display::Inline => BoxType::Inline(&styled_node),
+        Display::Block => BoxType::Block((*styled_node).clone()),
+        Display::Inline => BoxType::Inline((*styled_node).clone()),
         Display::None => panic!("Root has diplay none"),
     });
 
     for child in &styled_node.children {
         match child.get_computed_display() {
-            Display::Block => root.children.push(build_layout_tree(child)),
+            Display::Block => root.children.push(generate_layout_tree(child)),
             Display::Inline => root
                 .get_inline_container()
                 .children
-                .push(build_layout_tree(child)),
+                .push(generate_layout_tree(child)),
             Display::None => {}
         }
     }
@@ -164,7 +178,7 @@ mod tests {
         new_css_declaration, new_css_rule, new_css_selector, CSSProperty, CSSRule, CSSValue,
         Stylesheet, Unit,
     };
-    use crate::dom::{new_element, IDomNode, Node, NodeType, TagType};
+    use crate::dom::{new_element, NodeType, TagType};
     use crate::style::{generate_styled_node, Display, StyledNode};
     use std::collections::HashMap;
 
@@ -173,7 +187,7 @@ mod tests {
         let node = new_element(TagType::Div, HashMap::new(), vec![]);
         let stylesheet = Stylesheet::default();
         let styled_node = generate_styled_node(&node, &stylesheet);
-        let layout_box = LayoutBox::new(BoxType::Block(&styled_node));
+        let layout_box = LayoutBox::new(BoxType::Block(styled_node));
         assert!(matches!(layout_box.box_type, BoxType::Block(_)));
     }
 
@@ -182,7 +196,7 @@ mod tests {
         let node = new_element(TagType::Div, HashMap::new(), vec![]);
         let stylesheet = Stylesheet::default();
         let styled_node = generate_styled_node(&node, &stylesheet);
-        let mut layout_box = LayoutBox::new(BoxType::Block(&styled_node));
+        let mut layout_box = LayoutBox::new(BoxType::Block(styled_node));
         let inline_container = layout_box.get_inline_container();
         assert!(matches!(inline_container.box_type, BoxType::Anonymous));
     }
@@ -196,25 +210,25 @@ mod tests {
             vec![
                 new_css_declaration(
                     CSSProperty::Padding,
-                    CSSValue::Dimension(10.0, Unit::Px),
+                    CSSValue::Dimension(10, Unit::Px),
                     false,
                 ),
                 new_css_declaration(
                     CSSProperty::Width,
-                    CSSValue::Dimension(100.0, Unit::Px),
+                    CSSValue::Dimension(100, Unit::Px),
                     false,
                 ),
             ],
         ));
         let styled_node = generate_styled_node(&node, &stylesheet);
-        let mut layout_box = LayoutBox::new(BoxType::Block(&styled_node));
+        let mut layout_box = LayoutBox::new(BoxType::Block(styled_node));
         let container = Dimensions::default();
         layout_box.layout(&container);
-        assert_eq!(layout_box.dimensions.padding.left, 10.0);
-        assert_eq!(layout_box.dimensions.padding.right, 10.0);
-        assert_eq!(layout_box.dimensions.padding.bottom, 10.0);
-        assert_eq!(layout_box.dimensions.padding.top, 10.0);
-        assert_eq!(layout_box.dimensions.boundingRect.width, 100.0);
+        assert_eq!(layout_box.dimensions.padding.left, 10);
+        assert_eq!(layout_box.dimensions.padding.right, 10);
+        assert_eq!(layout_box.dimensions.padding.bottom, 10);
+        assert_eq!(layout_box.dimensions.padding.top, 10);
+        assert_eq!(layout_box.dimensions.boundingRect.width, 100);
     }
 
     #[test]
@@ -226,7 +240,7 @@ mod tests {
         );
         let stylesheet = Stylesheet::default();
         let root_node = generate_styled_node(&node, &stylesheet);
-        let layout_tree = build_layout_tree(&root_node);
+        let layout_tree = generate_layout_tree(&root_node);
         assert_eq!(layout_tree.children.len(), 1);
         assert!(matches!(
             layout_tree.children[0].box_type,

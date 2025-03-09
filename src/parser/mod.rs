@@ -26,7 +26,7 @@ macro_rules! impl_CharStream {
             }
 
             fn starts_with(&self, s: &str) -> bool {
-                &self.input[self.pos..] == s
+                self.input[self.pos..].starts_with(s)
             }
 
             fn consume_while<F>(&mut self, test: F) -> String

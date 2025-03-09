@@ -5,16 +5,16 @@ use crate::{
         CSSDeclaration, CSSProperty, CSSRule, CSSSelector, CSSSpecifity, CSSValue, SimpleSelector,
         Stylesheet,
     },
-    dom::{self, ElementData, IDomNode, NodeType, TagType},
+    dom::{self, DomNode, ElementData, NodeType, TagType},
 };
 
-pub type PropertyMap<'a> = HashMap<&'a CSSProperty, &'a CSSValue>;
+pub type PropertyMap = HashMap<CSSProperty, CSSValue>;
 
-#[derive(Debug)]
-pub struct StyledNode<'a> {
-    pub node: &'a dyn IDomNode,
-    pub specified_values: PropertyMap<'a>,
-    pub children: Vec<StyledNode<'a>>,
+#[derive(Debug, Clone)]
+pub struct StyledNode {
+    pub node: Box<DomNode>,
+    pub specified_values: PropertyMap,
+    pub children: Vec<StyledNode>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -24,9 +24,12 @@ pub enum Display {
     None,
 }
 
-impl<'a> StyledNode<'a> {
+impl StyledNode {
     pub fn get_computed_value(&self, name: &CSSProperty) -> Option<CSSValue> {
-        self.specified_values.get(name).map(|v| (*v).clone())
+        match self.specified_values.get(name) {
+            Some(v) => Some((*v).clone()),
+            None => Some(name.default_value()),
+        }
     }
 
     pub fn get_computed_display(&self) -> Display {
@@ -80,7 +83,7 @@ fn matches_rule(node: &ElementData, rule: &CSSRule) -> Option<CSSSpecifity> {
     return matched_rules.iter().next().copied();
 }
 
-fn get_specified_values<'a>(node: &dyn IDomNode, stylesheet: &'a Stylesheet) -> PropertyMap<'a> {
+fn get_specified_values(node: &DomNode, stylesheet: &Stylesheet) -> PropertyMap {
     if let NodeType::Text(_) = &node.get_node_type() {
         return HashMap::new();
     }
@@ -102,8 +105,8 @@ fn get_specified_values<'a>(node: &dyn IDomNode, stylesheet: &'a Stylesheet) -> 
                 .collect();
 
             matched_rules.sort_by(|a, b| a.0.cmp(&b.0));
-            let mut specified_values: HashMap<&'a CSSProperty, &'a CSSValue> = HashMap::new();
-            let mut specified_is_important: HashMap<&'a CSSProperty, bool> = HashMap::new();
+            let mut specified_values = HashMap::new();
+            let mut specified_is_important: HashMap<CSSProperty, bool> = HashMap::new();
             for (_, rule) in matched_rules {
                 for CSSDeclaration {
                     property,
@@ -118,8 +121,8 @@ fn get_specified_values<'a>(node: &dyn IDomNode, stylesheet: &'a Stylesheet) -> 
                         continue;
                     }
 
-                    specified_values.insert(property, value);
-                    specified_is_important.insert(property, *is_important);
+                    specified_values.insert(*property, value.clone());
+                    specified_is_important.insert(*property, *is_important);
                 }
             }
             specified_values
@@ -127,18 +130,15 @@ fn get_specified_values<'a>(node: &dyn IDomNode, stylesheet: &'a Stylesheet) -> 
     }
 }
 
-pub fn generate_styled_node<'a>(
-    node: &'a (dyn IDomNode),
-    stylesheet: &'a Stylesheet,
-) -> StyledNode<'a> {
+pub fn generate_styled_node(node: &DomNode, stylesheet: &Stylesheet) -> StyledNode {
     StyledNode {
-        node: node,
-        specified_values: get_specified_values(node, stylesheet),
+        specified_values: get_specified_values(&node, &stylesheet),
         children: node
             .get_children()
-            .iter()
-            .map(|child| generate_styled_node(child, stylesheet))
+            .into_iter()
+            .map(|child| generate_styled_node(child, &stylesheet))
             .collect(),
+        node: Box::new(node.clone()),
     }
 }
 
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn test_generated_styled_tree() {
         let html = "
-            <div class=\"my-div\">
+            <div class='my-div'>
                 Hello world!
             </div>
         ";
@@ -184,7 +184,7 @@ mod tests {
 
     #[test]
     fn test_display_none() {
-        let html = "<div style=\"display: none\">Hidden</div>";
+        let html = "<div style='display: none'>Hidden</div>";
         let css = "div { display: none; }";
         let stylesheet = CSSParser::new(css).parse();
         let dom = HTMLParser::new(html).parse();
@@ -212,7 +212,7 @@ mod tests {
 
     #[test]
     fn test_css_specificity_ordering() {
-        let html = "<p class=\"foo\">Text</p>";
+        let html = "<p class='foo'>Text</p>";
         let css = "
             p { color: red; }
             .foo { color: blue; }
@@ -231,7 +231,7 @@ mod tests {
 
     #[test]
     fn test_style_element_by_id() {
-        let html = "<div id=\"test\">Hello</div>";
+        let html = "<div id='test'>Hello</div>";
         let css = "#test { color: green; }";
         let stylesheet = CSSParser::new(css).parse();
         let dom = HTMLParser::new(html).parse();

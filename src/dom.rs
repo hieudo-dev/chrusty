@@ -3,19 +3,13 @@ use std::{
     fmt::{self, Debug},
 };
 
-pub trait IDomNode: Debug {
-    fn get_children(&self) -> &Vec<Node>;
-    fn get_node_type(&self) -> &NodeType;
-    fn get_tag_type(&self) -> Option<TagType>;
+#[derive(Debug, Clone)]
+pub struct DomNode {
+    node_type: NodeType,
+    children: Vec<DomNode>,
 }
 
-#[derive(Debug)]
-pub struct Document {
-    pub children: Vec<Node>,
-    pub node_type: NodeType,
-}
-
-impl fmt::Display for Document {
+impl fmt::Display for DomNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for child in &self.children {
             child.recursive_fmt(f, 0);
@@ -24,34 +18,7 @@ impl fmt::Display for Document {
     }
 }
 
-impl IDomNode for Document {
-    fn get_children(&self) -> &Vec<Node> {
-        return &self.children;
-    }
-
-    fn get_node_type(&self) -> &NodeType {
-        return &self.node_type;
-    }
-
-    fn get_tag_type(&self) -> Option<TagType> {
-        return Some(TagType::Html);
-    }
-}
-
-#[derive(Debug)]
-pub struct Node {
-    children: Vec<Node>,
-    node_type: NodeType,
-}
-
-impl fmt::Display for Node {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.recursive_fmt(f, 0);
-        Ok(())
-    }
-}
-
-impl Node {
+impl DomNode {
     fn recursive_fmt(&self, f: &mut fmt::Formatter<'_>, depth: usize) {
         let indent_root = "\t".repeat(depth);
         match &self.node_type {
@@ -72,18 +39,23 @@ impl Node {
             }
         }
     }
-}
 
-impl IDomNode for Node {
-    fn get_children(&self) -> &Vec<Node> {
+    pub fn new(node_type: NodeType, children: Vec<DomNode>) -> DomNode {
+        DomNode {
+            node_type,
+            children,
+        }
+    }
+
+    pub fn get_children(&self) -> &Vec<DomNode> {
         return &self.children;
     }
 
-    fn get_node_type(&self) -> &NodeType {
+    pub fn get_node_type(&self) -> &NodeType {
         return &self.node_type;
     }
 
-    fn get_tag_type(&self) -> Option<TagType> {
+    pub fn get_tag_type(&self) -> Option<TagType> {
         match &self.node_type {
             NodeType::Text(_) => None,
             NodeType::Element(ElementData {
@@ -94,13 +66,13 @@ impl IDomNode for Node {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NodeType {
     Text(String),
     Element(ElementData),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ElementData {
     pub tag_type: TagType,
     pub attributes: HashMap<String, String>,
@@ -142,15 +114,15 @@ impl std::fmt::Display for TagType {
 
 type AttrsMap = HashMap<String, String>;
 
-pub fn new_text(content: &str, children: Vec<Node>) -> Node {
-    Node {
+pub fn new_text(content: &str, children: Vec<DomNode>) -> DomNode {
+    DomNode {
         children,
         node_type: NodeType::Text(String::from(content.trim())),
     }
 }
 
-pub fn new_element(tag_type: TagType, attributes: AttrsMap, children: Vec<Node>) -> Node {
-    Node {
+pub fn new_element(tag_type: TagType, attributes: AttrsMap, children: Vec<DomNode>) -> DomNode {
+    DomNode {
         children,
         node_type: NodeType::Element(ElementData {
             tag_type,
